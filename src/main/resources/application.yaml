@@ -1,0 +1,176 @@
+spring:
+  application:
+    name: shop-backend
+
+  # ── JPA / Hibernate ────────────────────────────────────────────────────────
+  jpa:
+    hibernate:
+      ddl-auto: validate          # Flyway owns the schema; Hibernate only validates
+    open-in-view: false           # Never keep connections open for lazy-loading in view layer
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          time_zone: UTC
+
+  # ── Redis ──────────────────────────────────────────────────────────────────
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+
+  # ── Flyway ─────────────────────────────────────────────────────────────────
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    out-of-order: false
+
+  # ── Mail ───────────────────────────────────────────────────────────────────
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          timeout: 5000
+          connection_timeout: 5000
+
+  # ── Security / OAuth2 Resource Server ──────────────────────────────────────
+  # JWT is validated with our own RSA key pair; no external JWKS endpoint needed.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          public-key-location: ${JWT_PUBLIC_KEY_LOCATION:classpath:keys/public.pem}
+
+  # ── Jackson ────────────────────────────────────────────────────────────────
+  # Spring Boot 4 ships Jackson 3 (tools.jackson.*). Date/time features are no
+  # longer SerializationFeatures — they live on DateTimeFeature and are bound
+  # through spring.jackson.datatype.datetime.*. Putting
+  # write-dates-as-timestamps under spring.jackson.serialization fails startup
+  # with "No enum constant ...SerializationFeature.write-dates-as-timestamps".
+  jackson:
+    default-property-inclusion: non_null
+    datatype:
+      datetime:
+        write-dates-as-timestamps: false   # ISO-8601 strings, not epoch millis
+    deserialization:
+      fail-on-unknown-properties: false
+    time-zone: UTC
+
+# ── Server ─────────────────────────────────────────────────────────────────
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: application/json,application/javascript,text/plain
+  shutdown: graceful
+
+# ── Actuator ───────────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# ── OpenAPI / Swagger UI ────────────────────────────────────────────────────
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+    display-request-duration: true
+
+# ── Application-specific properties ────────────────────────────────────────
+# ── CORS ────────────────────────────────────────────────────────────────────
+# Comma-separated list of browser origins allowed to call the API.
+# Configured on SecurityConfig via CorsConfigurationSource; empty ⇒ CORS disabled.
+app:
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+
+  # JWT
+  jwt:
+    private-key-location: ${JWT_PRIVATE_KEY_LOCATION:classpath:keys/private.pem}
+    public-key-location: ${JWT_PUBLIC_KEY_LOCATION:classpath:keys/public.pem}
+    access-token-expiry-seconds: ${JWT_ACCESS_EXPIRY:3600}      # 1 h
+    refresh-token-expiry-seconds: ${JWT_REFRESH_EXPIRY:2592000} # 30 d
+
+  # MinIO / S3-compatible object storage
+  storage:
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${MINIO_ACCESS_KEY:minioadmin}
+    secret-key: ${MINIO_SECRET_KEY:minioadmin}
+    bucket: ${MINIO_BUCKET:shop-assets}
+
+  # Stripe
+  stripe:
+    secret-key: ${STRIPE_SECRET_KEY:}
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+
+  # Razorpay
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID:}
+    key-secret: ${RAZORPAY_KEY_SECRET:}
+    webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+
+  # PayPal
+  paypal:
+    client-id: ${PAYPAL_CLIENT_ID:}
+    client-secret: ${PAYPAL_CLIENT_SECRET:}
+    base-url: ${PAYPAL_BASE_URL:https://api-m.sandbox.paypal.com}
+
+  # SSLCommerz
+  sslcommerz:
+    store-id: ${SSLCOMMERZ_STORE_ID:}
+    store-password: ${SSLCOMMERZ_STORE_PASSWORD:}
+    base-url: ${SSLCOMMERZ_BASE_URL:https://sandbox.sslcommerz.com}
+
+  # Rate limiting (Bucket4j)
+  rate-limit:
+    auth:
+      capacity: 10        # max requests per window
+      refill-tokens: 10   # tokens restored per window
+      refill-seconds: 60  # window size in seconds
+
+  # Google OAuth2 (native SDK token verification)
+  oauth2:
+    google:
+      client-id: ${GOOGLE_CLIENT_ID:}
+    apple:
+      client-id: ${APPLE_CLIENT_ID:}
+      team-id: ${APPLE_TEAM_ID:}
+      key-id: ${APPLE_KEY_ID:}
+      private-key: ${APPLE_PRIVATE_KEY:}
+
+  # Idempotency key TTL
+  idempotency:
+    ttl-hours: 24
+

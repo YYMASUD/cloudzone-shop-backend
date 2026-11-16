@@ -1,0 +1,51 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Test profile: verify the Flyway migration and the JPA mappings agree, using an
+# in-memory H2 database in PostgreSQL compatibility mode.
+#
+# Why this exists
+#   The real deployment runs `ddl-auto: validate` against PostgreSQL, so any drift
+#   between V1__init.sql and the entities is a hard startup failure. Catching that
+#   drift requires a database, and Testcontainers needs Docker. This profile gives
+#   a Docker-free equivalent that runs on every `mvn test`.
+#
+#   Flyway is left ENABLED so the actual migration file executes — that is the
+#   whole point. Hibernate then validates the entities against it.
+#
+# Caveats (this is a guard rail, not a substitute for PostgreSQL)
+#   • TIMESTAMPTZ is not an H2 type name, so it is registered as a domain alias
+#     via INIT. The migration itself is never modified for tests.
+#   • H2 accepts a superset of what PostgreSQL does; a pass here does not prove
+#     CHECK constraints, ON DELETE actions or index behaviour.
+#
+# This profile also:
+#   • points JWT at the HERMETIC test key pair under src/test/resources/keys
+#     (committed, throwaway, never used at runtime) so the security filter chain
+#     boots without the git-ignored src/main/resources/keys/private.pem.
+#
+# The DEV seed migration is deliberately NOT loaded here — see application-seed.yaml,
+# which layers on top of this profile for SeedDataTest.
+# ─────────────────────────────────────────────────────────────────────────────
+spring:
+  datasource:
+    url: jdbc:h2:mem:schema;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1;INIT=CREATE DOMAIN IF NOT EXISTS TIMESTAMPTZ AS TIMESTAMP WITH TIME ZONE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  jpa:
+    hibernate:
+      ddl-auto: validate     # the exact setting used in production
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+app:
+  jwt:
+    private-key-location: classpath:keys/test-private.pem
+    public-key-location: classpath:keys/test-public.pem
+

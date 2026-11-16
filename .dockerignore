@@ -1,0 +1,43 @@
+# .dockerignore — files excluded from the Docker build context
+# Keep the build context small to speed up image builds.
+
+# Build output — always excluded
+target/
+
+# Source control
+.git/
+.gitignore
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# Local environment files — secrets must NOT enter the image
+.env
+.env.*
+!.env.example
+
+# Private keys — never bake into the image; mount at runtime
+src/main/resources/keys/private.pem
+src/main/resources/keys/*.p8
+
+# Compose files (not needed inside the image)
+compose*.yaml
+docker-compose*.yml
+
+# Documentation
+*.md
+DEPLOYMENT.md
+
+# OS artefacts
+.DS_Store
+Thumbs.db
+
+# Log files
+logs/
+*.log
+
+# Maven wrapper cache (the .jar is downloaded during build; exclude the binary)
+# Keep .mvn/wrapper/maven-wrapper.properties so the wrapper can download maven
+.mvn/wrapper/maven-wrapper.jar

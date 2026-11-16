@@ -1,0 +1,22 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# `seed` profile — additive over `schema`.
+#
+# Activate with @ActiveProfiles({"schema", "seed"}). Everything else (H2 in
+# PostgreSQL mode, ddl-auto=validate, test RSA keys) comes from application-schema.yaml;
+# this document only widens the Flyway locations so the DEV seed migration runs.
+#
+# Kept separate on purpose: SchemaContractTest asserts global row counts
+# (e.g. findAllByActiveTrue). Running seed data inside that profile would make
+# those assertions depend on seed contents. Seed behaviour is verified by
+# SeedDataTest instead.
+#
+# The datasource URL is repeated with a DIFFERENT database name (`seed`, not
+# `schema`) so the two Spring contexts never share Flyway history — otherwise a
+# context that applied V1000 would fail validation in the other.
+# ─────────────────────────────────────────────────────────────────────────────
+spring:
+  datasource:
+    url: jdbc:h2:mem:seed;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1;INIT=CREATE DOMAIN IF NOT EXISTS TIMESTAMPTZ AS TIMESTAMP WITH TIME ZONE
+
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed

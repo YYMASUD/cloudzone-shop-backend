@@ -1,0 +1,37 @@
+# compose.test.yaml — Testcontainers-free integration test stack
+# Usage: docker compose -f compose.test.yaml up -d
+#        ./mvnw verify
+#        docker compose -f compose.test.yaml down -v
+#
+# Use this when running integration tests in CI without Docker-in-Docker.
+# The app itself is started by Maven; this file provides only the backing services.
+
+name: shop-backend-test
+
+services:
+
+  postgres-test:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: shopdb_test
+      POSTGRES_USER: shopuser
+      POSTGRES_PASSWORD: shoppass
+    ports:
+      - "15432:5432"
+    tmpfs:
+      - /var/lib/postgresql/data   # Use tmpfs for faster CI tests
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shopuser -d shopdb_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis-test:
+    image: redis:7-alpine
+    ports:
+      - "16379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
