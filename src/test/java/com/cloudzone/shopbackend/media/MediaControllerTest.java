@@ -170,7 +170,7 @@ class MediaControllerTest {
         assertThat(getResponse.statusCode()).isEqualTo(404);
         assertThat(readCode(getResponse)).isEqualTo("media_not_found");
 
-        HttpResponse<String> deleteResponse = send(delete("/api/admin/media/424242", adminToken));
+        HttpResponse<String> deleteResponse = delete("/api/admin/media/424242", adminToken);
         assertThat(deleteResponse.statusCode()).isEqualTo(404);
         assertThat(readCode(deleteResponse)).isEqualTo("media_not_found");
     }
