@@ -4,7 +4,6 @@ import com.cloudzone.shopbackend.common.security.AuthPrincipal;
 import com.cloudzone.shopbackend.common.security.JwtService;
 import com.cloudzone.shopbackend.common.web.PageResponse;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -51,7 +50,6 @@ public class NotificationController {
 
     /** Marks every unread notification of the caller read; returns the affected count. */
     @PatchMapping("/read-all")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
     public MarkAllReadResponse markAllRead(JwtAuthenticationToken authentication) {
         return new MarkAllReadResponse(notificationService.markAllRead(userId(authentication)));
     }

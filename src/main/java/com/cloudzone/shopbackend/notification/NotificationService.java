@@ -4,6 +4,7 @@ import com.cloudzone.shopbackend.common.error.ApiException;
 import com.cloudzone.shopbackend.common.web.PageResponse;
 import com.cloudzone.shopbackend.user.UserRepository;
 import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -61,7 +62,9 @@ public class NotificationService {
     public NotificationResponse markRead(Long userId, Long id) {
         Notification notification = owned(userId, id);
         if (notification.getReadAt() == null) {
-            notification.setReadAt(OffsetDateTime.now());
+            // Truncated to microseconds: timestamptz columns store micros, so the
+            // stamped value must match what the next read loads back from the DB.
+            notification.setReadAt(OffsetDateTime.now().truncatedTo(ChronoUnit.MICROS));
         }
         return NotificationResponse.from(notification);
     }
@@ -73,7 +76,8 @@ public class NotificationService {
      */
     @Transactional
     public long markAllRead(Long userId) {
-        return notificationRepository.markAllRead(userId, OffsetDateTime.now());
+        return notificationRepository.markAllRead(
+                userId, OffsetDateTime.now().truncatedTo(ChronoUnit.MICROS));
     }
 
     // ── admin-facing ──────────────────────────────────────────────────────────
