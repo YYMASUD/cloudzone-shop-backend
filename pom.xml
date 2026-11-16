@@ -100,11 +100,17 @@
             <artifactId>bucket4j_jdk17-lettuce</artifactId>
             <version>${bucket4j.version}</version>
         </dependency>
-        <!-- MinIO object storage client -->
+        <!-- MinIO object storage client (its HTTP transport, OkHttp, is an
+             optional/transitive gap in minio 9.x and must be declared explicitly) -->
         <dependency>
             <groupId>io.minio</groupId>
             <artifactId>minio</artifactId>
             <version>${minio.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>4.12.0</version>
         </dependency>
         <!-- Payment gateways -->
         <dependency>

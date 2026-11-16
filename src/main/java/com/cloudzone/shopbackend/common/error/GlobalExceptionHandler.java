@@ -17,6 +17,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.LinkedHashMap;
@@ -126,6 +127,16 @@ public class GlobalExceptionHandler {
         log.debug("protocol error {} on {}: {}", status, request.getRequestURI(), title);
         ApiError body = ApiError.of(protocolCode(status), title, status, request.getRequestURI());
         return ResponseEntity.status(status).body(body);
+    }
+
+    /** Upload over the servlet multipart limit — a client mistake, not a server fault. */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiError> handleUploadTooLarge(
+            MaxUploadSizeExceededException ex, HttpServletRequest request) {
+        log.debug("oversized upload on {}: {}", request.getRequestURI(), ex.getMessage());
+        ApiError body = ApiError.of("media_too_large", "File exceeds the upload size limit",
+                HttpStatus.PAYLOAD_TOO_LARGE.value(), request.getRequestURI());
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(body);
     }
 
     /** Bad query/path value binding — e.g. {@code ?size=abc} — is the client's mistake. */

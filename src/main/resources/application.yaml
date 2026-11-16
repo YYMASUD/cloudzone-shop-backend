@@ -48,6 +48,14 @@ spring:
           timeout: 5000
           connection_timeout: 5000
 
+  # ── Multipart uploads ───────────────────────────────────────────────────────
+  # Kept above MediaService.MAX_SIZE_BYTES (5 MB) so oversized files reach the
+  # service and get a clean 413, not a servlet-level rejection.
+  servlet:
+    multipart:
+      max-file-size: 6MB
+      max-request-size: 7MB
+
   # ── Security / OAuth2 Resource Server ──────────────────────────────────────
   # JWT is validated with our own RSA key pair; no external JWKS endpoint needed.
   security:
@@ -129,6 +137,10 @@ app:
     access-key: ${MINIO_ACCESS_KEY:minioadmin}
     secret-key: ${MINIO_SECRET_KEY:minioadmin}
     bucket: ${MINIO_BUCKET:shop-assets}
+    # minio = always use MinIO; local = filesystem; auto = MinIO when an endpoint
+    # is set, otherwise the filesystem under app.storage.local-dir.
+    mode: ${STORAGE_MODE:auto}
+    local-dir: ${STORAGE_LOCAL_DIR:target/uploads}
 
   # Stripe
   stripe:
