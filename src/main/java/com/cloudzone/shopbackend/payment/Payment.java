@@ -13,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -54,6 +55,26 @@ public class Payment extends BaseEntity {
     /** Raw gateway payload for auditing / debugging webhooks. */
     @Column(name = "gateway_payload", columnDefinition = "text")
     private String gatewayPayload;
+
+    /** Human-facing receipt id returned by the gateway on capture. */
+    @Column(name = "receipt_number", length = 255)
+    private String receiptNumber;
+
+    /** When the gateway confirmed the capture; null until SUCCEEDED. */
+    @Column(name = "paid_at")
+    private OffsetDateTime paidAt;
+
+    /** When the refund was issued; null until REFUNDED. */
+    @Column(name = "refunded_at")
+    private OffsetDateTime refundedAt;
+
+    /** Total refunded so far; CHECK-constrained to {@code [0, amount]}. */
+    @Builder.Default
+    @Column(name = "refund_amount", nullable = false, precision = 12, scale = 2)
+    private BigDecimal refundAmount = BigDecimal.ZERO;
+
+    @Column(name = "refund_reason", length = 500)
+    private String refundReason;
 
     @Column(name = "failure_reason", length = 500)
     private String failureReason;

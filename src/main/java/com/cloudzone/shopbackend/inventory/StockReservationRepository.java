@@ -40,6 +40,9 @@ public interface StockReservationRepository extends JpaRepository<StockReservati
     /** The caller's reservation history, newest first; {@code id DESC} breaks ties. */
     List<StockReservation> findAllByUserIdOrderByCreatedAtDescIdDesc(Long userId);
 
+    /** Every hold (any status) committed to an order — used by cancel/refund restock. */
+    List<StockReservation> findAllByOrderId(Long orderId);
+
     /** ACTIVE holds whose deadline has passed — the input to the expiry sweep. */
     List<StockReservation> findAllByStatusAndExpiresAtBefore(
             StockReservationStatus status, OffsetDateTime cutoff);

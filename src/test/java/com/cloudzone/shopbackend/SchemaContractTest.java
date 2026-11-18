@@ -523,7 +523,7 @@ class SchemaContractTest {
     }
 
     @Test
-    @DisplayName("V3-V9 commerce migrations expose the entity-mapped columns")
+    @DisplayName("V3-V11 commerce migrations expose the entity-mapped columns")
     void commerceMigrationColumnsExist() {
         assertThat(hasColumn("stock_reservations", "product_id")).isTrue();
         assertThat(hasColumn("stock_reservations", "user_id")).isTrue();
@@ -546,6 +546,10 @@ class SchemaContractTest {
         assertThat(hasColumn("shipping_methods", "estimated_days")).isTrue();
         assertThat(hasColumn("shipments", "order_id")).isTrue();
         assertThat(hasColumn("shipments", "tracking_number")).isTrue();
+        // V11: the coupon snapshot on orders (see V11__order_discounts.sql).
+        assertThat(hasColumn("orders", "discount_amount")).isTrue();
+        assertThat(hasColumn("orders", "coupon_code")).isTrue();
+        assertThat(numericType("orders", "discount_amount")).isEqualTo("numeric(12,2)");
     }
 
     // ── V3: inventory ledger ─────────────────────────────────────────────────

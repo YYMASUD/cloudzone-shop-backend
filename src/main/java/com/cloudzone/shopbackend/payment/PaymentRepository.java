@@ -18,4 +18,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
      * stability convention {@code ProductSort} applies to catalogue listings.
      */
     Optional<Payment> findFirstByOrderIdOrderByCreatedAtDescIdDesc(Long orderId);
+
+    /** Count of payments in a status, for the admin dashboard's funnel. */
+    long countByStatus(com.cloudzone.shopbackend.common.enums.PaymentStatus status);
 }

@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.LinkedHashMap;
@@ -87,6 +88,38 @@ public class GlobalExceptionHandler {
         ApiError body = ApiError.of("conflict", "Resource already exists",
                 HttpStatus.CONFLICT.value(), request.getRequestURI());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    /**
+     * Multipart parsing failed before any controller ran. Spring wraps the servlet
+     * container's parse failure in a {@code MultipartException} whose <em>cause</em>
+     * carries the real reason — a size-limit breach versus a malformed body. Matching
+     * on the cause's class name keeps this container-agnostic instead of importing
+     * Tomcat internals; a size breach maps to the same 413 the service would raise.
+     */
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<ApiError> handleMultipart(
+            MultipartException ex, HttpServletRequest request) {
+        boolean oversized = isSizeLimit(ex.getCause());
+        String code = oversized ? "media_too_large" : "invalid_multipart";
+        String message = oversized
+                ? "File exceeds the upload size limit"
+                : "Malformed multipart request";
+        log.debug("multipart rejected on {}: {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .status(oversized ? HttpStatus.PAYLOAD_TOO_LARGE : HttpStatus.BAD_REQUEST)
+                .body(ApiError.of(code, message,
+                        oversized ? 413 : 400, request.getRequestURI()));
+    }
+
+    /** Walks the cause chain for a multipart size-limit signal (Tomcat, Jetty, ...). */
+    private static boolean isSizeLimit(Throwable cause) {
+        for (Throwable t = cause; t != null && t.getCause() != t; t = t.getCause()) {
+            if (t.getClass().getSimpleName().contains("SizeLimitExceeded")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** A valid token lacked the authority for the route — distinct from "no/bad token". */

@@ -124,6 +124,47 @@ public class StockReservationService {
     }
 
     /**
+     * Releases every still-ACTIVE hold that belongs to an order — used when a
+     * PENDING order is cancelled before payment captured. Committed rows are left
+     * untouched (they no longer subtract from availability; the order owns that
+     * stock, which {@link #restockForOrder} returns to the shelf).
+     */
+    @Transactional
+    public void releaseAllForOrder(Long orderId) {
+        for (StockReservation reservation : reservationRepository.findAllByOrderId(orderId)) {
+            if (reservation.getStatus() == StockReservationStatus.ACTIVE) {
+                reservation.setStatus(StockReservationStatus.RELEASED);
+            }
+        }
+    }
+
+    /**
+     * Returns an order's committed stock to the shelf — used when a PAID or
+     * PROCESSING order is cancelled or refunded. Each hold increments its
+     * product's (or variant's) {@code stock_quantity} back and is demoted to
+     * RELEASED so it stops being an outstanding allocation. Idempotent: rows
+     * already RELEASED are skipped, so a repeated refund cannot double-restock.
+     */
+    @Transactional
+    public void restockForOrder(Long orderId) {
+        for (StockReservation reservation : reservationRepository.findAllByOrderId(orderId)) {
+            if (reservation.getStatus() != StockReservationStatus.COMMITTED) {
+                continue;
+            }
+            if (reservation.getVariantId() == null) {
+                productRepository.findById(reservation.getProductId())
+                        .ifPresent(p -> p.setStockQuantity(
+                                p.getStockQuantity() + reservation.getQuantity()));
+            } else {
+                variantRepository.findById(reservation.getVariantId())
+                        .ifPresent(v -> v.setStockQuantity(
+                                v.getStockQuantity() + reservation.getQuantity()));
+            }
+            reservation.setStatus(StockReservationStatus.RELEASED);
+        }
+    }
+
+    /**
      * Demotes every expired ACTIVE hold to RELEASED. Idempotent and safe to run on a
      * schedule: rows already terminal are not selected, and a concurrently released row
      * simply saves a second time as RELEASED.

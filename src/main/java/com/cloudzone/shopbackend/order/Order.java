@@ -57,6 +57,18 @@ public class Order extends BaseEntity {
     @Column(name = "total", nullable = false, precision = 12, scale = 2)
     private BigDecimal total;
 
+    /**
+     * Discount applied at checkout from a coupon, snapshotted so later coupon
+     * edits never rewrite historical totals. Zero when no coupon was used.
+     */
+    @Builder.Default
+    @Column(name = "discount_amount", nullable = false, precision = 12, scale = 2)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
+    /** Denormalized code of the coupon applied, when checkout used one. */
+    @Column(name = "coupon_code", length = 50)
+    private String couponCode;
+
     @Column(name = "currency", nullable = false, length = 3)
     private String currency;
 

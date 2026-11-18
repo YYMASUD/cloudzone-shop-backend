@@ -3,6 +3,7 @@ package com.cloudzone.shopbackend.coupon;
 import com.cloudzone.shopbackend.common.error.ApiException;
 import com.cloudzone.shopbackend.common.web.PageResponse;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -158,6 +159,39 @@ public class CouponService {
     public void recordRedemption(Long couponId) {
         Coupon coupon = coupon(couponId);
         coupon.setTimesRedeemed(coupon.getTimesRedeemed() + 1);
+    }
+
+    /** A code redeemed inside checkout: the coupon row plus the monetary discount. */
+    public record Redemption(Coupon coupon, BigDecimal discount) {
+    }
+
+    /**
+     * Validates a code and redeems it in one step for the checkout flow: applies the
+     * same usability and {@code min_order_total} rules as {@link #discountFor}, then
+     * increments {@code times_redeemed} on the loaded entity so the counter flushes
+     * with the surrounding checkout transaction.
+     *
+     * @return the usable coupon and its discount (already rounded to 2 decimals and
+     *     capped at the subtotal), or throws 404 {@code coupon_not_found} /
+     *     400 {@code coupon_min_total} exactly like {@link #discountFor}
+     */
+    @Transactional
+    public Redemption redeemForDiscount(String code, BigDecimal subtotal) {
+        Coupon coupon = usableCoupon(code);
+        BigDecimal total = subtotal == null ? BigDecimal.ZERO : subtotal;
+        if (coupon.getMinOrderTotal() != null
+                && total.compareTo(coupon.getMinOrderTotal()) < 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "coupon_min_total",
+                    "Order total is below the minimum for that code");
+        }
+        BigDecimal discount = switch (coupon.getDiscountType()) {
+            case PERCENT -> total
+                    .multiply(coupon.getDiscountValue())
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            case FIXED -> coupon.getDiscountValue().min(total);
+        };
+        coupon.setTimesRedeemed(coupon.getTimesRedeemed() + 1);
+        return new Redemption(coupon, discount);
     }
 
     // ── internals ─────────────────────────────────────────────────────────────

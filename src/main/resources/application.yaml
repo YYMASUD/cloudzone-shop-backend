@@ -186,3 +186,11 @@ app:
   idempotency:
     ttl-hours: 24
 
+  # ── Outbound email ─────────────────────────────────────────────────────────
+  # From address + a kill switch. When enabled=false MailService is a no-op, which is
+  # how the test profile runs without a real SMTP server. spring.mail.* still points at
+  # MailDev (dev) or a real relay (prod); this flag only gates our sends.
+  mail:
+    enabled: ${APP_MAIL_ENABLED:true}
+    from: ${MAIL_FROM:no-reply@shop.dev}
+

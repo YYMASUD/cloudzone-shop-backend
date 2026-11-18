@@ -4,7 +4,6 @@ import com.cloudzone.shopbackend.common.security.AuthPrincipal;
 import com.cloudzone.shopbackend.common.security.JwtService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -45,10 +44,52 @@ public class AuthController {
         return authService.login(request);
     }
 
+    /**
+     * Signs in with a Google/Apple ID token obtained by the client's native SDK.
+     *
+     * <p>Unauthenticated by necessity — this <em>is</em> the login. Trust comes from the
+     * token's own signature, issuer and audience, all checked server-side before the
+     * account is looked up or created.
+     */
+    @PostMapping("/social")
+    public AuthTokenResponse socialLogin(@Valid @RequestBody SocialLoginRequest request) {
+        return authService.socialLogin(request);
+    }
+
     /** Exchanges a refresh token for a fresh pair; the access-only API filter doesn't apply. */
     @PostMapping("/refresh")
     public AuthTokenResponse refresh(@Valid @RequestBody RefreshRequest request) {
         return authService.refresh(request);
+    }
+
+    /**
+     * Sends the caller a 6-digit verification code. Authenticated — the code belongs to
+     * the logged-in identity, so it must be requested under a token, not an email address.
+     */
+    @PostMapping("/verify-email/request")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void requestEmailVerification(JwtAuthenticationToken authentication) {
+        authService.requestEmailVerification(principal(authentication).userId());
+    }
+
+    /** Confirms the emailed code and marks the account verified. */
+    @PostMapping("/verify-email/confirm")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void confirmEmail(
+            JwtAuthenticationToken authentication,
+            @Valid @RequestBody ConfirmEmailRequest request) {
+        authService.confirmEmail(principal(authentication).userId(), request.code());
+    }
+
+    /**
+     * Revokes the presented refresh token so it can no longer mint access tokens.
+     * Unauthenticated by design — the credential being revoked is the proof of ownership.
+     * Idempotent: a stale or already-revoked token is still a 204.
+     */
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(@Valid @RequestBody LogoutRequest request) {
+        authService.logout(request);
     }
 
     /**
@@ -57,8 +98,11 @@ public class AuthController {
      */
     @GetMapping("/me")
     public UserProfileResponse me(JwtAuthenticationToken authentication) {
-        Jwt jwt = authentication.getToken();
-        AuthPrincipal principal = jwtService.toPrincipal(jwt);
-        return authService.profileFor(principal);
+        return authService.profileFor(principal(authentication));
+    }
+
+    /** Projects the verified JWT into {@link AuthPrincipal}; shared by the authed endpoints. */
+    private AuthPrincipal principal(JwtAuthenticationToken authentication) {
+        return jwtService.toPrincipal(authentication.getToken());
     }
 }

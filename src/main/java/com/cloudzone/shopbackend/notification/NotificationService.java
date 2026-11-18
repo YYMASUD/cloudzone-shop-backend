@@ -28,12 +28,15 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final MailService mailService;
 
     public NotificationService(
             NotificationRepository notificationRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            MailService mailService) {
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
+        this.mailService = mailService;
     }
 
     // ── caller-facing ─────────────────────────────────────────────────────────
@@ -81,6 +84,30 @@ public class NotificationService {
     }
 
     // ── admin-facing ──────────────────────────────────────────────────────────
+
+    /**
+     * Records a feed entry and, when the recipient has a resolvable email, mirrors it to
+     * their inbox asynchronously. This is the single write path for system-generated
+     * notifications (order events); the in-app row is transactional, the email is not.
+     *
+     * <p>Returns the saved row so the caller can log or link it; the email side effect is
+     * fire-and-forget on the notification executor.
+     */
+    @Transactional
+    public Notification deliver(Long userId, NotificationType type,
+            String title, String body, String link) {
+        Notification saved = notificationRepository.save(Notification.builder()
+                .userId(userId)
+                .type(type)
+                .title(title)
+                .body(body)
+                .link(link)
+                .build());
+        // The email mirrors the feed row; lookup failures just mean "no inbox copy".
+        userRepository.findById(userId).ifPresent(user ->
+                mailService.send(user.getEmail(), title, body == null ? "" : body));
+        return saved;
+    }
 
     /** Delivers a notification to one user; an unknown target is a 404. */
     @Transactional

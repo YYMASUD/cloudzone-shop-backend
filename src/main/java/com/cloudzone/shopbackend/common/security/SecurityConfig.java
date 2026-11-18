@@ -65,11 +65,13 @@ public class SecurityConfig {
                         // Observability & docs — infrastructure surface, not business data
                         .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        // Provider webhooks authenticate via their own signature, not a JWT
+                        .requestMatchers("/api/webhooks/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // Credential entry points — the only way to obtain the token
                         // that every other endpoint demands. GET /auth/me is NOT here:
                         // it requires a token on purpose (it proves the token path works).
-                        .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login", "/auth/refresh").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login", "/auth/refresh", "/auth/logout", "/auth/social").permitAll()
                         // Administrative surfaces — reachable only with an ADMIN token.
                         // Declared here rather than per-handler so the whole /api/admin
                         // namespace fails closed: adding a route there is always a

@@ -62,3 +62,21 @@ app:
     mode: local
     local-dir: target/test-uploads
 
+  # Outbound email is a no-op in tests — there is no SMTP server, and the async send
+  # must not turn a business-path test into a connection failure.
+  mail:
+    enabled: false
+
+  # A known webhook secret so the receiver's HMAC path can be exercised for real;
+  # without it every provider falls into the audit-only branch and signatures are
+  # never compared.
+  stripe:
+    webhook-secret: whsec_test_secret
+
+  # A fake client id so the social-verification path is reachable; the JWKS fetch will
+  # be attempted only if a caller actually hits /auth/social, and in tests no Google
+  # token can be minted, so the failure is at the decode step (401), not at startup.
+  oauth2:
+    google:
+      client-id: fake-google-client-id.apps.googleusercontent.com
+

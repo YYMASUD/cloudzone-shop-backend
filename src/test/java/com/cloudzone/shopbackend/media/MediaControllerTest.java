@@ -7,6 +7,7 @@ import com.cloudzone.shopbackend.common.security.JwtService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -206,16 +207,12 @@ class MediaControllerTest {
     private HttpResponse<String> postMultipart(String path, String token, String fileName,
             String contentType, byte[] bytes, String altText) throws Exception {
         ByteArrayOutputStream body = new ByteArrayOutputStream();
-        body.writeBytes(("--" + BOUNDARY + "\r\n").getBytes(StandardCharsets.UTF_8));
-        body.writeBytes(("Content-Disposition: form-data; name=\"file\"; filename=\""
-                + fileName + "\"\r\n").getBytes(StandardCharsets.UTF_8));
-        body.writeBytes(("Content-Type: " + contentType + "\r\n\r\n")
-                .getBytes(StandardCharsets.UTF_8));
-        body.writeBytes(bytes);
-        body.writeBytes(("\r\n--" + BOUNDARY + "\r\n").getBytes(StandardCharsets.UTF_8));
+        // Every part writes its own leading delimiter, and only when that part is
+        // present: a dangling delimiter would be parsed as an empty part, which
+        // strict RFC 7578 readers (Tomcat 11) reject with 400 invalid_multipart.
+        addPart(body, "file", fileName, contentType, bytes);
         if (altText != null) {
-            body.writeBytes(("Content-Disposition: form-data; name=\"altText\"\r\n\r\n"
-                    + altText + "\r\n").getBytes(StandardCharsets.UTF_8));
+            addPart(body, "altText", null, null, altText.getBytes(StandardCharsets.UTF_8));
         }
         body.writeBytes(("--" + BOUNDARY + "--\r\n").getBytes(StandardCharsets.UTF_8));
 
@@ -227,6 +224,28 @@ class MediaControllerTest {
             builder.header("Authorization", "Bearer " + token);
         }
         return send(builder.build());
+    }
+
+    /**
+     * Appends one multipart part: leading delimiter, headers, payload and trailing
+     * CRLF. {@code fileName}/{@code contentType} are omitted for plain text fields
+     * like {@code altText}.
+     */
+    private void addPart(ByteArrayOutputStream body, String name, String fileName,
+            String contentType, byte[] bytes) throws IOException {
+        body.writeBytes(("--" + BOUNDARY + "\r\n").getBytes(StandardCharsets.UTF_8));
+        String disposition = fileName != null
+                ? "Content-Disposition: form-data; name=\"" + name
+                        + "\"; filename=\"" + fileName + "\"\r\n"
+                : "Content-Disposition: form-data; name=\"" + name + "\"\r\n";
+        body.writeBytes(disposition.getBytes(StandardCharsets.UTF_8));
+        if (contentType != null) {
+            body.writeBytes(("Content-Type: " + contentType + "\r\n")
+                    .getBytes(StandardCharsets.UTF_8));
+        }
+        body.writeBytes("\r\n".getBytes(StandardCharsets.UTF_8));
+        body.writeBytes(bytes);
+        body.writeBytes("\r\n".getBytes(StandardCharsets.UTF_8));
     }
 
     private JsonNode postJson(String path, String json, String token) throws Exception {
